@@ -11,27 +11,25 @@ import time
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import pylab
 import matplotlib.pyplot as plt
 
-from image_op import read_image
 from image_op import get_tensor
 
 class ConvNet(object):
     def __init__(self):
         self.training_folder = "../data_catsdogs/train"
-        self.desired_shape = 300
-        self.dataset_size = 200
+        self.desired_shape = 100
+        self.dataset_size = 15000
         self.test_percent = 0.2
         self.lr = 0.001
-        self.batch_size = 32
+        self.batch_size = 128
         self.keep_prob = tf.constant(0.85) # used in tf.layer.dropout to leave only 85% of data to prevent overfitting
         self.gstep = tf.Variable(0, dtype=tf.int32,
                                  trainable=False, name='global_step') # goes to the optimizer. Keeps track
                                                                         # of the batches seen so far
-        self.n_classes = 1
+        self.n_classes = 2
         self.skip_step = 20 # printing rate
 
         self.training = True # Turn on training mode
@@ -39,8 +37,8 @@ class ConvNet(object):
     def get_data(self):
         with tf.name_scope('data'):
             # path, train_size, test_size, batch_size, desired_shape=300
-            train_data, test_data = get_tensor(self.training_folder, self.dataset_size*(1-self.test_percent),
-                                               self.dataset_size*self.test_percent, self.batch_size,
+            train_data, test_data = get_tensor(self.training_folder, int(self.dataset_size*(1-self.test_percent)),
+                                               int(self.dataset_size*self.test_percent), self.batch_size,
                                                desired_shape=self.desired_shape)
 
             iterator = tf.data.Iterator.from_structure(train_data.output_types,
@@ -135,7 +133,8 @@ class ConvNet(object):
             if self.n_classes > 1:
                 correct_preds = tf.equal(tf.argmax(preds, 1), tf.argmax(self.label, 1))
             else:
-                correct_preds = tf.equal(preds, self.label)
+                preds_round = tf.cast(tf.round(preds), tf.int64)
+                correct_preds = tf.equal(preds_round, self.label)
             self.accuracy = tf.reduce_mean(tf.cast(correct_preds, tf.float32))
 
     def build(self):
@@ -209,15 +208,14 @@ class ConvNet(object):
         '''
         The train function alternates between training one epoch and evaluating
         '''
-        writer = tf.summary.FileWriter('./graphs/convnet_layers_' + self.label_name, tf.get_default_graph())
+        writer = tf.summary.FileWriter('../graphs/convnet_layers', tf.get_default_graph())
 
         with tf.Session() as sess:
             print('Running session')
             sess.run(tf.global_variables_initializer())
             print('Variables initialized')
             saver = tf.train.Saver()
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/convnet_layers_'
-                                                                 + self.label_name + '/checkpoint'))
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('../checkpoints/convnet_layers'))
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
 
@@ -243,8 +241,7 @@ class ConvNet(object):
             sess.run(tf.global_variables_initializer())
             print('Variables initialized')
             saver = tf.train.Saver()
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/convnet_layers_'
-                                                                  + self.label_name + '/checkpoint'))
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('../checkpoints/convnet_layers'))
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
 
