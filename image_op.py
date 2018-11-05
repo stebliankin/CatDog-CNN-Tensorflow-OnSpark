@@ -3,7 +3,7 @@
 #-----------------------------------------------------------------------------------------------
 # This file is a part of the final project for CAP5768
 #
-# Functions to make operations on image
+# Functions to make operations on images
 #
 #   Functions list:
 #       * read_image(files, desired_a)
