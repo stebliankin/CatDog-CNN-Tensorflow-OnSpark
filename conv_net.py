@@ -5,8 +5,7 @@ Objective:
     Convolutional Neural Network to classify cats vs dogs
 
 Open sourced Stanford course "CS 20: Tensorflow for Deep Learning Research"
-(http://web.stanford.edu/class/cs20si/syllabus.html) was used for building the script
-
+(https://github.com/chiphuyen/stanford-tensorflow-tutorials) was used for building the script
 
 """
 import time
