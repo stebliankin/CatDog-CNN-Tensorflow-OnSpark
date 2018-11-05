@@ -89,5 +89,6 @@ def get_tensor(path, train_size, test_size, batch_size, desired_shape=300):
     train_data = train_data.batch(batch_size)
     test_data = test_data.batch(batch_size)
     return train_data, test_data
+
 #read_catdog(["/Users/stebliankin/Desktop/Data Science-CAP5768/project/all/train/cat.0.jpg"], 300)
 #get_catdog_tensor("/Users/stebliankin/Desktop/Data Science-CAP5768/project/all/train/",100,10,5)
