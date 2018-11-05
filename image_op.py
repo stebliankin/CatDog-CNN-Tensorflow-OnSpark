@@ -49,9 +49,9 @@ def read_image(files, desired_a):
             print("Error. Can't read label for " + img_name)
             exit()
         if lbl == 'cat':
-            lbl = [1, 0]
+            lbl = 1
         else:
-            lbl = [0, 1]
+            lbl = 0
         # Read image in greyscale:
         img_pix = cv2.imread(img_name, cv2.IMREAD_GRAYSCALE)
         old_size = img_pix.shape[:2]  # old size in (height, width) format
