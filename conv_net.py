@@ -15,6 +15,8 @@ import numpy as np
 import tensorflow as tf
 import pylab
 import matplotlib.pyplot as plt
+import utils_MNIST
+import time
 
 from image_op import get_tensor
 
@@ -30,28 +32,7 @@ class ConvNet(object):
         self.gstep = tf.Variable(0, dtype=tf.int32,
                                  trainable=False, name='global_step') # goes to the optimizer. Keeps track
                                                                         # of the batches seen so far
-        self.n_classes = 2
-        self.skip_step = 20 # printing rate
-
         self.training = True # Turn on training mode
-
-    def get_data(self):
-        with tf.name_scope('data'):
-            # path, train_size, test_size, batch_size, desired_shape=300
-            train_data, test_data = get_tensor(self.training_folder, int(self.dataset_size*(1-self.test_percent)),
-                                               int(self.dataset_size*self.test_percent), self.batch_size,
-                                               desired_shape=self.desired_shape)
-
-            iterator = tf.data.Iterator.from_structure(train_data.output_types,
-                                                       train_data.output_shapes)
-            img, self.label = iterator.get_next()
-
-            # reshape the image to make it work with tf.nn.conv2d:
-            img = tf.reshape(img, shape=[-1, self.desired_shape, self.desired_shape, 1])
-            self.img = tf.cast(img, tf.float32)
-
-            self.train_init = iterator.make_initializer(train_data)  # initializer for train_data
-            self.test_init = iterator.make_initializer(test_data)  # initializer for train_data
 
     def get_predict_data(self, tensor):
         iterator = tf.data.Iterator.from_structure(tensor.output_types,
@@ -142,6 +123,7 @@ class ConvNet(object):
         '''
         Build the computation graph
         '''
+        #self.get_data()
         self.get_data()
         self.inference()
         self.loss()
@@ -262,10 +244,55 @@ class ConvNet(object):
         return lbl_predicted
 
 
+class CatDogConvNet(ConvNet):
+    def __init__(self):
+        super().__init__()
+        self.n_classes = 2
+        self.skip_step = 20  # printing rate
+
+
+
+    def get_data(self):
+        with tf.name_scope('data'):
+            # path, train_size, test_size, batch_size, desired_shape=300
+            train_data, test_data = get_tensor(self.training_folder, int(self.dataset_size*(1-self.test_percent)),
+                                               int(self.dataset_size*self.test_percent), self.batch_size,
+                                               desired_shape=self.desired_shape)
+
+            iterator = tf.data.Iterator.from_structure(train_data.output_types,
+                                                       train_data.output_shapes)
+            img, self.label = iterator.get_next()
+
+            # reshape the image to make it work with tf.nn.conv2d:
+            img = tf.reshape(img, shape=[-1, self.desired_shape, self.desired_shape, 1])
+            self.img = tf.cast(img, tf.float32)
+
+            self.train_init = iterator.make_initializer(train_data)  # initializer for train_data
+            self.test_init = iterator.make_initializer(test_data)  # initializer for train_data
+
+class MnistConvNet(ConvNet):
+    def __init__(self):
+        super().__init__()
+        self.n_classes = 10
+        self.skip_step = 1  # printing rate
+
+
+
+    def get_data(self):
+        with tf.name_scope("mnist_data"):
+            train_data, test_data = utils_MNIST.get_mnist_dataset(self.batch_size)
+            iterator = tf.data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
+            img, self.label = iterator.get_next()
+            self.img = tf.reshape(img, shape=[-1, 28, 28, 1])
+            self.train_init = iterator.make_initializer(train_data)
+            self.test_init = iterator.make_initializer(test_data)
+
 if __name__ == '__main__':
+    start = time.time()
     print('start program')
-    model = ConvNet()
+    model = MnistConvNet()
     print('building a model')
     model.build()
     print('training')
-    model.train(n_epochs=5)
+    model.train(n_epochs=1)
+    print("Done. Running time is {} min.".format((time.time() - start)/60))
