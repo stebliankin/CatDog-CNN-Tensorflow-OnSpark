@@ -4,8 +4,9 @@ This script is part of the FIU CAP5768 final project.
 Objective:
     Convolutional Neural Network to classify cats vs dogs
 
-Open sourced Stanford course "CS 20: Tensorflow for Deep Learning Research"
-(https://github.com/chiphuyen/stanford-tensorflow-tutorials) was used for building the script
+The structure of the model and part of the code was taken from
+the open sourced Stanford course "CS 20: Tensorflow for Deep Learning Research"
+(https://github.com/chiphuyen/stanford-tensorflow-tutorials/blob/master/examples/07_convnet_mnist.py)
 
 """
 import time
@@ -21,10 +22,8 @@ import time
 from image_op import get_tensor
 
 class ConvNet(object):
-    def __init__(self):
-        self.training_folder = "../data_catsdogs/train"
-        self.desired_shape = 100
-        self.dataset_size = 15000
+    def __init__(self, checkpoint_path, graph_path):
+
         self.test_percent = 0.2
         self.lr = 0.001
         self.batch_size = 128
@@ -33,6 +32,8 @@ class ConvNet(object):
                                  trainable=False, name='global_step') # goes to the optimizer. Keeps track
                                                                         # of the batches seen so far
         self.training = True # Turn on training mode
+        self.checkpoint_path = checkpoint_path
+        self.graph_path = graph_path
 
     def get_predict_data(self, tensor):
         iterator = tf.data.Iterator.from_structure(tensor.output_types,
@@ -163,9 +164,9 @@ class ConvNet(object):
                 time.sleep(10)
         except tf.errors.OutOfRangeError:
             pass
-        if not os.path.exists('../checkpoints/convnet_layers'):
-            os.makedirs('../checkpoints/convnet_layers')
-        saver.save(sess, '../checkpoints/convnet_layers', step)
+        if not os.path.exists(self.checkpoint_path):
+            os.makedirs(self.checkpoint_path)
+        saver.save(sess, self.checkpoint_path, step)
         print('Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches))
         print('Took: {0} minutes'.format((time.time() - start_time)/60))
         return step
@@ -191,14 +192,14 @@ class ConvNet(object):
         '''
         The train function alternates between training one epoch and evaluating
         '''
-        writer = tf.summary.FileWriter('../graphs/convnet_layers', tf.get_default_graph())
+        writer = tf.summary.FileWriter(self.graph_path, tf.get_default_graph())
 
         with tf.Session() as sess:
             print('Running session')
             sess.run(tf.global_variables_initializer())
             print('Variables initialized')
             saver = tf.train.Saver()
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname('../checkpoints/convnet_layers'))
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path))
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
 
@@ -212,41 +213,14 @@ class ConvNet(object):
                 #sess.run(tf.summary.image('filter', conv2))
         writer.close()
 
-    def predict(self, tensor):
-        # input: tensor of images to predict with shape = (number of images, img width, img height)
-        # output: list of predicted classes
-        self.get_predict_data(tensor)
-        self.inference()
-
-        with tf.Session() as sess:
-            sess.run(self.iter)
-            print('Running session')
-            sess.run(tf.global_variables_initializer())
-            print('Variables initialized')
-            saver = tf.train.Saver()
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname('../checkpoints/convnet_layers'))
-            if ckpt and ckpt.model_checkpoint_path:
-                saver.restore(sess, ckpt.model_checkpoint_path)
-
-            # sess.run(self.img)
-            # print(sess.run(self.img))
-            lbl_predicted = []
-            try:
-                while True:
-                    prediction = sess.run(self.logits)
-                    if np.argmax(prediction) == 0:
-                        lbl = 1
-                    else:
-                        lbl = 0
-                    lbl_predicted.append(lbl)
-            except tf.errors.OutOfRangeError:
-                pass
-        return lbl_predicted
-
 
 class CatDogConvNet(ConvNet):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, checkpoint_path, graph_path):
+        super().__init__(checkpoint_path, graph_path)
+        self.training_folder = "../data_catsdogs/train"
+        self.desired_shape = 100
+        self.dataset_size = 15000
+
         self.n_classes = 2
         self.skip_step = 20  # printing rate
 
@@ -269,14 +243,47 @@ class CatDogConvNet(ConvNet):
 
             self.train_init = iterator.make_initializer(train_data)  # initializer for train_data
             self.test_init = iterator.make_initializer(test_data)  # initializer for train_data
+    def predict(self, tensor):
+        # input: tensor of images to predict with shape = (number of images, img width, img height)
+        # output: list of predicted classes
+        self.get_predict_data(tensor)
+        self.inference()
+
+        with tf.Session() as sess:
+            sess.run(self.iter)
+            print('Running session')
+            sess.run(tf.global_variables_initializer())
+            print('Variables initialized')
+            saver = tf.train.Saver()
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path))
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+                print("checkpoint has been restored")
+
+            # sess.run(self.img)
+            # print(sess.run(self.img))
+            lbl_predicted = []
+            try:
+                while True:
+                    prediction = sess.run(self.logits)
+                    if np.argmax(prediction) == 0:
+                        lbl = 1
+                    else:
+                        lbl = 0
+                    lbl_predicted.append(lbl)
+            except tf.errors.OutOfRangeError:
+                pass
+        return lbl_predicted
 
 class MnistConvNet(ConvNet):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, checkpoint_path, graph_path):
+        super().__init__(checkpoint_path, graph_path)
+        self.training_folder = "data/mnist"
+        self.desired_shape = 28
+        self.dataset_size = 60000
+
         self.n_classes = 10
         self.skip_step = 1  # printing rate
-
-
 
     def get_data(self):
         with tf.name_scope("mnist_data"):
@@ -287,12 +294,59 @@ class MnistConvNet(ConvNet):
             self.train_init = iterator.make_initializer(train_data)
             self.test_init = iterator.make_initializer(test_data)
 
+    def predict(self, tensor):
+        # input: tensor of images to predict with shape = (number of images, img width, img height)
+        # output: list of predicted classes
+        self.get_predict_data(tensor)
+        self.inference()
+
+        with tf.Session() as sess:
+            sess.run(self.iter)
+            print('Running session')
+            sess.run(tf.global_variables_initializer())
+            print('Variables initialized')
+            saver = tf.train.Saver()
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path))
+            print(self.checkpoint_path)
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+                print("Restored")
+            # sess.run(self.img)
+            # print(sess.run(self.img))
+            lbl_predicted = []
+            try:
+                while True:
+                    prediction = sess.run(self.logits)
+                    lbl = np.argmax(prediction)
+                    lbl_predicted.append(lbl)
+            except tf.errors.OutOfRangeError:
+                pass
+        return lbl_predicted
+
 if __name__ == '__main__':
-    start = time.time()
-    print('start program')
-    model = MnistConvNet()
-    print('building a model')
-    model.build()
-    print('training')
-    model.train(n_epochs=1)
-    print("Done. Running time is {} min.".format((time.time() - start)/60))
+    # start = time.time()
+    # print('start program')
+    # model = MnistConvNet()
+    # print('building a model')
+    # model.build()
+    # print('training')
+    # model.train(n_epochs=1)
+    # print("Done. Running time is {} min.".format((time.time() - start)/60))
+    # Read pixels of image:
+    import cv2
+
+    img = cv2.imread("MNIST_testing/2.png", cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, (28, 28))
+    img = img.reshape([1, 28, 28])
+    # tf_image = tf.image.decode_png(workdir+"/MNIST_testing/9.png", channels=1)
+    # image_float = tf.image.convert_image_dtype(tf_image, tf.float32)
+    # image_float = tf.reshape(image_float, shape = [-1, 28, 28, 1])
+    # image_float = tf.cast(image_float, tf.float32)
+    tensor = tf.data.Dataset.from_tensor_slices(img)
+    # tensor = tf.reshape(tensor, shape=[1,28,28,])
+    checkpoint_path = "/Users/stebliankin/Desktop/Data Science-CAP5768/project/CatDog-CNN-Tensorflow-OnSpark/checkpoints/conv_layers-430"
+    graph_path = "/Users/stebliankin/Desktop/Data\ Science-CAP5768/project/graphs/convnet_layers"
+
+    model = MnistConvNet(checkpoint_path=checkpoint_path, graph_path=graph_path)
+    #model.build()
+    print("Predicted number is {}".format(model.predict(tensor)))
