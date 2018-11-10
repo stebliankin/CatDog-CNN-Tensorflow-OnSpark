@@ -18,8 +18,10 @@ import pylab
 import matplotlib.pyplot as plt
 import utils_MNIST
 import time
+import datetime
 
 from image_op import get_tensor
+import utils
 
 class ConvNet(object):
     def __init__(self, checkpoint_path, graph_path):
@@ -186,6 +188,9 @@ class ConvNet(object):
         except tf.errors.OutOfRangeError:
             pass
         print('Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches))
+        utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        'Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches),
+                        "log.txt")
         print('Took: {0} seconds'.format(time.time() - start_time))
 
     def train(self, n_epochs):
