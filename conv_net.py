@@ -281,7 +281,6 @@ class MnistConvNet(ConvNet):
         self.training_folder = "data/mnist"
         self.desired_shape = 28
         self.dataset_size = 60000
-
         self.n_classes = 10
         self.skip_step = 1  # printing rate
 
@@ -323,7 +322,7 @@ class MnistConvNet(ConvNet):
                 pass
         return lbl_predicted
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
     # start = time.time()
     # print('start program')
     # model = MnistConvNet()
@@ -333,20 +332,20 @@ if __name__ == '__main__':
     # model.train(n_epochs=1)
     # print("Done. Running time is {} min.".format((time.time() - start)/60))
     # Read pixels of image:
-    import cv2
-
-    img = cv2.imread("MNIST_testing/2.png", cv2.IMREAD_GRAYSCALE)
-    img = cv2.resize(img, (28, 28))
-    img = img.reshape([1, 28, 28])
-    # tf_image = tf.image.decode_png(workdir+"/MNIST_testing/9.png", channels=1)
-    # image_float = tf.image.convert_image_dtype(tf_image, tf.float32)
-    # image_float = tf.reshape(image_float, shape = [-1, 28, 28, 1])
-    # image_float = tf.cast(image_float, tf.float32)
-    tensor = tf.data.Dataset.from_tensor_slices(img)
-    # tensor = tf.reshape(tensor, shape=[1,28,28,])
-    checkpoint_path = "/Users/stebliankin/Desktop/Data Science-CAP5768/project/CatDog-CNN-Tensorflow-OnSpark/checkpoints/conv_layers-430"
-    graph_path = "/Users/stebliankin/Desktop/Data\ Science-CAP5768/project/graphs/convnet_layers"
-
-    model = MnistConvNet(checkpoint_path=checkpoint_path, graph_path=graph_path)
-    #model.build()
-    print("Predicted number is {}".format(model.predict(tensor)))
+    # import cv2
+    #
+    # img = cv2.imread("MNIST_testing/2.png", cv2.IMREAD_GRAYSCALE)
+    # img = cv2.resize(img, (28, 28))
+    # img = img.reshape([1, 28, 28])
+    # # tf_image = tf.image.decode_png(workdir+"/MNIST_testing/9.png", channels=1)
+    # # image_float = tf.image.convert_image_dtype(tf_image, tf.float32)
+    # # image_float = tf.reshape(image_float, shape = [-1, 28, 28, 1])
+    # # image_float = tf.cast(image_float, tf.float32)
+    # tensor = tf.data.Dataset.from_tensor_slices(img)
+    # # tensor = tf.reshape(tensor, shape=[1,28,28,])
+    # checkpoint_path = "/Users/stebliankin/Desktop/Data Science-CAP5768/project/CatDog-CNN-Tensorflow-OnSpark/checkpoints/conv_layers-430"
+    # graph_path = "/Users/stebliankin/Desktop/Data\ Science-CAP5768/project/graphs/convnet_layers"
+    #
+    # model = MnistConvNet(checkpoint_path=checkpoint_path, graph_path=graph_path)
+    # #model.build()
+    # print("Predicted number is {}".format(model.predict(tensor)))
