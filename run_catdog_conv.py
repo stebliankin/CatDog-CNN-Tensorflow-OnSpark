@@ -17,7 +17,7 @@ utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
 
 model = conv_net.CatDogConvNet(checkpoints_path, graph_path)
 model.set_batch_size(batch_size)
-model.set_dataset_size(500)
+model.set_dataset_size(dataset_size)
 print('building a model')
 model.build()
 print('training')

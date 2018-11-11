@@ -162,6 +162,9 @@ class ConvNet(object):
                 writer.add_summary(summaries, global_step=step)
                 if (step + 1) % self.skip_step == 0:
                     print('Loss at step {0}: {1}'.format(step, l))
+                    utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                    'Loss at step {0}: {1}'.format(step, l),
+                                    "log.txt")
                 step += 1
                 total_loss += l
                 n_batches += 1
