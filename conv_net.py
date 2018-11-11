@@ -26,9 +26,9 @@ import utils
 class ConvNet(object):
     def __init__(self, checkpoint_path, graph_path):
 
-        self.test_percent = 0.2
+        self.test_percent = 0.5
         self.lr = 0.001
-        self.batch_size = 128
+        self.batch_size = 100
         self.keep_prob = tf.constant(0.85) # used in tf.layer.dropout to leave only 85% of data to prevent overfitting
         self.gstep = tf.Variable(0, dtype=tf.int32,
                                  trainable=False, name='global_step') # goes to the optimizer. Keeps track
@@ -52,19 +52,20 @@ class ConvNet(object):
 
     def inference(self):
         self.conv1 = tf.layers.conv2d(inputs=self.img,
-                                 filters=32,
-                                 kernel_size=[6, 6],
+                                 filters=16,
+                                 kernel_size=[4, 4],
                                  padding='SAME',
                                  activation=tf.nn.relu,
                                  name='conv1')
+								 
         pool1 = tf.layers.max_pooling2d(inputs=self.conv1,
                                         pool_size=[2, 2],
                                         strides=2,
                                         name='pool1')
 
         self.conv2 = tf.layers.conv2d(inputs=pool1,
-                                 filters=64,
-                                 kernel_size=[6, 6],
+                                 filters=32,
+                                 kernel_size=[5, 5],
                                  padding='SAME',
                                  activation=tf.nn.relu,
                                  name='conv2')
@@ -73,9 +74,45 @@ class ConvNet(object):
                                         strides=2,
                                         name='pool2')
 
-        feature_dim = pool2.shape[1] * pool2.shape[2] * pool2.shape[3]
-        pool2 = tf.reshape(pool2, [-1, feature_dim])
-        fc = tf.layers.dense(pool2, 1024, activation=tf.nn.relu, name='fc') # fully connected layer
+        self.conv3 = tf.layers.conv2d(inputs=pool2,
+                                      filters=64,
+                                      kernel_size=[5, 5],
+                                      padding='SAME',
+                                      activation=tf.nn.relu,
+                                      name='conv3')
+
+        pool3 = tf.layers.max_pooling2d(inputs=self.conv3,
+                                        pool_size=[2, 2],
+                                        strides=2,
+                                        name='pool3')
+
+        self.conv4 = tf.layers.conv2d(inputs=pool3,
+                                      filters=32,
+                                      kernel_size=[5, 5],
+                                      padding='SAME',
+                                      activation=tf.nn.relu,
+                                      name='conv4')
+
+        pool4 = tf.layers.max_pooling2d(inputs=self.conv4,
+                                        pool_size=[2, 2],
+                                        strides=2,
+                                        name='pool4')
+
+        self.conv5 = tf.layers.conv2d(inputs=pool4,
+                                      filters=16,
+                                      kernel_size=[6, 6],
+                                      padding='SAME',
+                                      activation=tf.nn.relu,
+                                      name='conv5')
+
+        pool5 = tf.layers.max_pooling2d(inputs=self.conv5,
+                                        pool_size=[2, 2],
+                                        strides=2,
+                                        name='pool5')
+
+        feature_dim = pool5.shape[1] * pool5.shape[2] * pool5.shape[3]
+        pool5 = tf.reshape(pool5, [-1, feature_dim])
+        fc = tf.layers.dense(pool5, 1024, activation=tf.nn.relu, name='fc') # fully connected layer
         dropout = tf.layers.dropout(fc,
                                     self.keep_prob,
                                     training=self.training, # Perform dropout only on training mode
