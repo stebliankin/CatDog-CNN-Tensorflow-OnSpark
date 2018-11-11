@@ -170,6 +170,9 @@ class ConvNet(object):
             os.makedirs(self.checkpoint_path)
         saver.save(sess, self.checkpoint_path, step)
         print('Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches))
+        utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        'Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches),
+                        "log.txt")
         print('Took: {0} minutes'.format((time.time() - start_time)/60))
         return step
 
@@ -230,7 +233,8 @@ class CatDogConvNet(ConvNet):
         self.n_classes = 2
         self.skip_step = 1  # printing rate
 
-
+    def set_dataset_size(self, size):
+        self.dataset_size = size
 
     def get_data(self):
         with tf.name_scope('data'):
