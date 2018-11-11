@@ -228,7 +228,7 @@ class CatDogConvNet(ConvNet):
         self.dataset_size = 15000
 
         self.n_classes = 2
-        self.skip_step = 20  # printing rate
+        self.skip_step = 1  # printing rate
 
 
 
