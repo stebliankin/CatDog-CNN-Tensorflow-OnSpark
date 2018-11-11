@@ -56,7 +56,7 @@ def read_image(path, files, desired_a):
             # Read image in greyscale:
             img_pix = cv2.imread(os.path.join(path, img_name), cv2.IMREAD_GRAYSCALE)
             old_size = img_pix.shape[:2]  # old size in (height, width) format
-            ratio = desired_a / max(old_size)
+            ratio = float(desired_a) / float(max(old_size))
             # Make height or width equal to desired_a
             new_size = tuple([int(x * ratio) for x in old_size])
             img_pix = cv2.resize(img_pix, (new_size[1], new_size[0]))
