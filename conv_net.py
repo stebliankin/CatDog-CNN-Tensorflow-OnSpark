@@ -169,7 +169,7 @@ class ConvNet(object):
                 total_loss += l
                 n_batches += 1
                 #self.visualize_filters(sess)
-                time.sleep(10)
+                #time.sleep(10)
         except tf.errors.OutOfRangeError:
             pass
         if not os.path.exists(self.checkpoint_path):
@@ -216,11 +216,13 @@ class ConvNet(object):
             ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path))
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
-
+                print("Checkpoint has been restored")
             step = self.gstep.eval()
 
             for epoch in range(n_epochs):
                 print('start training')
+               # self.visualize_filters(sess)
+                #exit()
                 step = self.train_one_epoch(sess, saver, self.train_init, writer, epoch, step)
                 self.eval_once(sess, self.test_init, writer, epoch, step)
 
