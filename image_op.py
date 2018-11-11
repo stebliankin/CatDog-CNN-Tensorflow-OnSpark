@@ -34,6 +34,7 @@ import tensorflow as tf
 import os
 import cv2
 from random import shuffle
+from PIL import Image
 
 def read_image(path, files, desired_a):
     # Cat vs. Dog dataset https://www.kaggle.com/c/dogs-vs-cats
@@ -68,6 +69,9 @@ def read_image(path, files, desired_a):
             new_im = cv2.copyMakeBorder(img_pix, top, bottom, left, right, cv2.BORDER_CONSTANT,
                                         value=[0])
             new_im = cv2.resize(new_im, (desired_a, desired_a))
+            # img = Image.fromarray(new_im)
+            # img.show()
+            # exit()
             # Append resized image and label to the list
             pixels.append(new_im)
             labels.append(lbl)
