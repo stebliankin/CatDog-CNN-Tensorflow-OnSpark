@@ -9,7 +9,7 @@ graph_path = "../graphs/catdogs_conv"
 start = time.time()
 print('start program')
 utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "Starting run_catdog_conv.py", "log.txt")
-model = conv_net.MnistConvNet(checkpoints_path, graph_path)
+model = conv_net.CatDogConvNet(checkpoints_path, graph_path)
 print('building a model')
 model.build()
 print('training')

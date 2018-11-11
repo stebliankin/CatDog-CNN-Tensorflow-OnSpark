@@ -221,7 +221,8 @@ class ConvNet(object):
 
 class CatDogConvNet(ConvNet):
     def __init__(self, checkpoint_path, graph_path):
-        super().__init__(checkpoint_path, graph_path)
+        #super(ConvNet, self).__init__(checkpoint_path, graph_path)
+        ConvNet.__init__(self, checkpoint_path, graph_path)
         self.training_folder = "../data_catsdogs/train"
         self.desired_shape = 100
         self.dataset_size = 15000
@@ -282,7 +283,8 @@ class CatDogConvNet(ConvNet):
 
 class MnistConvNet(ConvNet):
     def __init__(self, checkpoint_path, graph_path):
-        super().__init__(checkpoint_path, graph_path)
+        #super(ConvNet, self).__init__(checkpoint_path, graph_path)
+        ConvNet.__init__(self, checkpoint_path, graph_path)
         self.training_folder = "data/mnist"
         self.desired_shape = 28
         self.dataset_size = 60000
