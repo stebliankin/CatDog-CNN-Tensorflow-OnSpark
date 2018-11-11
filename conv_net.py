@@ -37,6 +37,9 @@ class ConvNet(object):
         self.checkpoint_path = checkpoint_path
         self.graph_path = graph_path
 
+    def set_batch_size(self, batch_size):
+        self.batch_size = batch_size
+
     def get_predict_data(self, tensor):
         iterator = tf.data.Iterator.from_structure(tensor.output_types,
                                                    tensor.output_shapes)
