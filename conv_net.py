@@ -28,7 +28,7 @@ class ConvNet(object):
 
 #        self.desired_shape = 100
 #        self.dataset_size = 15000
-        self.test_percent = 0.45
+        self.test_percent = 0.3
         self.lr = 0.001
         self.batch_size = 100
         self.keep_prob = tf.constant(0.85) # used in tf.layer.dropout to leave only 85% of data to prevent overfitting
@@ -149,7 +149,7 @@ class ConvNet(object):
         '''
         with tf.name_scope('summaries'):
             tf.summary.scalar('loss', self.loss)
-            tf.summary.scalar('accuracy', self.accuracy)
+            tf.summary.scalar('Training Accuracy', self.accuracy)
             tf.summary.histogram('histogram loss', self.loss)
             self.summary_op = tf.summary.merge_all()
 
@@ -202,10 +202,11 @@ class ConvNet(object):
                 _, l, summaries = sess.run([self.opt, self.loss, self.summary_op])
                 writer.add_summary(summaries, global_step=step)
                 if (step + 1) % self.skip_step == 0:
-                    print('Loss at step {0}: {1}'.format(step, l))
+                    print('Loss at step {0}: {1}. Training accuracy is {2}'.format(step, l, sess.run(self.accuracy)))
                     utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                    'Loss at step {0}: {1}'.format(step, l),
-                                    "log.txt")
+                                    'Loss at step {0}: {1}. Training accuracy is {2}'.format(step, l,
+                                                                                             sess.run(self.accuracy)),
+                                self.log_file)
                 step += 1
                 total_loss += l
                 n_batches += 1
@@ -215,11 +216,11 @@ class ConvNet(object):
             pass
         if not os.path.exists(self.checkpoint_path):
             os.makedirs(self.checkpoint_path)
-        saver.save(sess, self.checkpoint_path, step)
+        saver.save(sess, self.checkpoint_path + "/checkpoint", step)
         print('Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches))
         utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                         'Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches),
-                        "log.txt")
+                    self.log_file)
         print('Took: {0} minutes'.format((time.time() - start_time)/60))
         return step
 
@@ -237,10 +238,10 @@ class ConvNet(object):
                 num_batches+=1
         except tf.errors.OutOfRangeError:
             pass
-        print('Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches))
+        print('Test Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches))
         utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        'Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches),
-                        "log.txt")
+                        'Test Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches),
+                    self.log_file)
         print('Took: {0} seconds'.format(time.time() - start_time))
 
     def train(self, n_epochs):
@@ -254,7 +255,7 @@ class ConvNet(object):
             sess.run(tf.global_variables_initializer())
             print('Variables initialized')
             saver = tf.train.Saver()
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path))
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path + "/checkpoint"))
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
                 print("Checkpoint has been restored")
@@ -272,15 +273,18 @@ class ConvNet(object):
 
 
 class CatDogConvNet(ConvNet):
-    def __init__(self, checkpoint_path, graph_path):
+    def __init__(self, checkpoint_path, graph_path, dataset_size=2500, batch_size=128, log_file='log.txt'):
         #super(ConvNet, self).__init__(checkpoint_path, graph_path)
         ConvNet.__init__(self, checkpoint_path, graph_path)
         self.training_folder = "../data_catsdogs/train"
         self.desired_shape = 100
-        self.dataset_size = 15000
+        self.dataset_size = dataset_size
+        self.batch_size = batch_size
 
         self.n_classes = 2
-        self.skip_step = 1  # printing rate
+        self.skip_step = 40  # printing rate
+
+        self.log_file = log_file
 
     def set_dataset_size(self, size):
         self.dataset_size = size
