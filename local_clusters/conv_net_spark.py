@@ -51,7 +51,7 @@ def main_fun(argv, ctx):
     task_index = ctx.task_index
     log_file=main_path+"log_spark.txt"
 
-    print(job_name)
+
     if job_name == "ps":
         server.join()
         utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -59,18 +59,23 @@ def main_fun(argv, ctx):
                         log_file)
 
     elif job_name == "worker":
-        model = conv_net.CatDogConvNet(FLAGS.checkpoint_path, FLAGS.graph_path, dataset_size=FLAGS.dataset_size,
-                                       batch_size=FLAGS.batch_size, num_workers=num_executors,
-                                       task_index=task_index, ctx=ctx)
-        model.training_folder = FLAGS.train_dir
-        model.log_file=main_path+"log_spark.txt"
-        print('building a model')
-        utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        'building the model on worker {}; task index {}'.format(worker_num, task_index),
-                        log_file)
-        model.build()
-        print('training')
-        model.train(n_epochs=FLAGS.n_epoch)
+        with tf.device(tf.train.replica_device_setter(cluster=cluster)):
+            model = conv_net.CatDogConvNet(FLAGS.checkpoint_path, FLAGS.graph_path, dataset_size=FLAGS.dataset_size,
+                                           batch_size=FLAGS.batch_size, num_workers=num_executors,
+                                           task_index=task_index, ctx=ctx, server=server)
+            model.training_folder = FLAGS.train_dir
+            model.log_file=main_path+"log_spark.txt"
+            print('building a model')
+            utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            'building the model on worker {}; task index {}'.format(worker_num, task_index),
+                            log_file)
+            model.build()
+
+            model.eval()
+            model.summary()
+            model.optimize()
+            print('training')
+            model.train(n_epochs=FLAGS.n_epoch)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
