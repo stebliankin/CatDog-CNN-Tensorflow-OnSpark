@@ -11,11 +11,11 @@ sys.path.append("..")
 
 import conv_net
 
-def main_fun(argv, ctx):
+def main_fun(args, ctx):
     # argv - parameters from sys.argv
     # ctx - node metadata like job_name, task_id
 
-    main_path="/Users/stebliankin/Desktop/DataScience-CAP5768/project/"
+    main_path = args.main_path
 
     sys.path.append(main_path+"CatDog-CNN-Tensorflow-OnSpark/")
 
@@ -24,8 +24,7 @@ def main_fun(argv, ctx):
     import conv_net
     import utils
     import datetime
-
-    sys.argv = argv
+    from image_op import get_tensor
 
 
     tf.app.flags.DEFINE_string('train_dir', main_path+'/data_catsdogs/train',
@@ -34,59 +33,96 @@ def main_fun(argv, ctx):
                                """Directory with checkpoints """)
     tf.app.flags.DEFINE_string('graph_path', main_path+'graphs/catdog_spark',
                                """Directory with graphs """)
-    tf.app.flags.DEFINE_integer('dataset_size', 200,
-                               """Dataset size """)
-    tf.app.flags.DEFINE_integer('batch_size', 32,
-                                """Batch Size """)
-    tf.app.flags.DEFINE_integer('n_epoch', 2,
-                                """Number Of Epoch """)
-    tf.app.flags.DEFINE_boolean('rdma', False, """Whether to use rdma.""")
 
     FLAGS=tf.app.flags.FLAGS
 
-    cluster, server = ctx.start_cluster_server(1, FLAGS.rdma)
+    cluster, server = TFNode.start_cluster_server(ctx)
 
     worker_num = ctx.worker_num
     job_name = ctx.job_name
     task_index = ctx.task_index
     log_file=main_path+"log_spark.txt"
+    num_executors=int(args.num_executors)
+    n_epoch=int(args.n_epoch)
+    dataset_size=int(args.dataset_size)
+    batch_size=int(args.batch_size)
+
+    max_worker_step=dataset_size*n_epoch*(1 - 0.3)/(num_executors*batch_size)
 
 
     if job_name == "ps":
-        server.join()
         utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        'PS: Merging the model',
+                        'Initializing PS',
                         log_file)
+        server.join()
+
 
     elif job_name == "worker":
         with tf.device(tf.train.replica_device_setter(cluster=cluster)):
-            model = conv_net.CatDogConvNet(FLAGS.checkpoint_path, FLAGS.graph_path, dataset_size=FLAGS.dataset_size,
-                                           batch_size=FLAGS.batch_size, num_workers=num_executors,
-                                           task_index=task_index, ctx=ctx, server=server)
+            model = conv_net.CatDogConvNet(FLAGS.checkpoint_path, FLAGS.graph_path, dataset_size=dataset_size,
+                                           batch_size=batch_size, num_workers=num_executors,
+                                           task_index=task_index, ctx=ctx, server=server, worker=worker_num,
+                                           max_worker_step=max_worker_step)
             model.training_folder = FLAGS.train_dir
             model.log_file=main_path+"log_spark.txt"
             print('building a model')
             utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                             'building the model on worker {}; task index {}'.format(worker_num, task_index),
                             log_file)
+            with tf.name_scope('data'):
+                # path, train_size, test_size, batch_size, desired_shape=300
+                train_data, test_data = get_tensor(model.training_folder,
+                                                   int(model.dataset_size * (1 - model.test_percent)),
+                                                   int(model.dataset_size * model.test_percent), model.batch_size,
+                                                   desired_shape=model.desired_shape, num_workers=model.num_workers,
+                                                   task_index=model.task_index)
+                # Some of the workers will finish training faster
+                # Train 150% of dat aset to make sure that all workers use whole data set
+                train_data = train_data.repeat(n_epoch)
+
+                iterator = tf.data.Iterator.from_structure(train_data.output_types,
+                                                           train_data.output_shapes)
+                img, model.label = iterator.get_next()
+
+                # reshape the image to make it work with tf.nn.conv2d:
+                img = tf.reshape(img, shape=[-1, model.desired_shape, model.desired_shape, 1])
+                model.img = tf.cast(img, tf.float32)
+
+                model.train_init = iterator.make_initializer(train_data)  # initializer for train_data
+                model.test_init = iterator.make_initializer(test_data)  # initializer for train_data
             model.build()
 
-            model.eval()
-            model.summary()
-            model.optimize()
             print('training')
-            model.train(n_epochs=FLAGS.n_epoch)
+            # 0.3 - trest percent
+            steps_limit=int(dataset_size * (1 - 0.3)  / (batch_size))
+            try:
+                model.train(n_epochs=n_epoch, steps_limit=steps_limit*n_epoch)
+            # if one the workers run out of data just wait the other worker
+            except RuntimeError:
+                pass
+
+
+
+# hooks = [tf.train.StopAtStepHook(
+#     last_step=int(int(self.dataset_size * (1 - self.test_percent) * n_epochs / self.batch_size)))]) as sess:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--num_workers", required=True, type=str, help="Number of worker executing excluding parameter server")
+    parser.add_argument("--num_executors", required=True, type=str, help="Number of worker executing excluding parameter server")
+    parser.add_argument("--n_epoch", help="number of current epoch", type=int)
+    parser.add_argument("--main_path", help="Path to '../CatDog-CNN-Tensorflow-OnSpark'", required=True, type=str)
+    parser.add_argument("--dataset_size", help="Training size to use", type=str)
+    parser.add_argument("--batch_size", help="batch size to use", type=int)
+
+    args=parser.parse_args()
 
     sc = SparkContext(conf=SparkConf().setAppName("catdog_spark"))
-    num_executors = 3
+    num_executors = int(args.num_executors)+1
     num_ps = 1
 
-    cluster = TFCluster.run(sc, main_fun, sys.argv, num_executors, num_ps, False, TFCluster.InputMode.TENSORFLOW)
+
+    cluster = TFCluster.run(sc, main_fun, args, num_executors, num_ps, False, TFCluster.InputMode.TENSORFLOW)
     cluster.shutdown()
 
 

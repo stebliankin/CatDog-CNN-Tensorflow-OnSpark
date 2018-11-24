@@ -39,6 +39,9 @@ class ConvNet(object):
         self.checkpoint_path = checkpoint_path
         self.graph_path = graph_path
 
+        self.num_workers=0
+        self.ctx=None
+
     def set_batch_size(self, batch_size):
         self.batch_size = batch_size
 
@@ -140,7 +143,7 @@ class ConvNet(object):
         Define training op
         using Adam Gradient Descent to minimize cost
         '''
-        self.opt = tf.train.AdamOptimizer(self.lr).minimize(self.loss,
+        self.opt = tf.train.GradientDescentOptimizer(self.lr).minimize(self.loss,
                                                             global_step=self.gstep)
 
     def summary(self):
@@ -170,8 +173,8 @@ class ConvNet(object):
         '''
         Build the computation graph
         '''
-        #self.get_data()
-        self.get_data()
+        if self.num_workers<1:
+            self.get_data()
         self.inference()
         self.loss()
         self.optimize()
@@ -214,13 +217,10 @@ class ConvNet(object):
                 #time.sleep(10)
         except tf.errors.OutOfRangeError:
             pass
-        if not os.path.exists(self.checkpoint_path):
-            os.makedirs(self.checkpoint_path)
-        saver.save(sess, self.checkpoint_path + "/checkpoint", step)
-        print('Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches))
-        utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        'Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches),
-                    self.log_file)
+        # print('Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches))
+        # utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        #                 'Average loss at epoch {0}: {1}'.format(epoch, total_loss / n_batches),
+        #             self.log_file)
         print('Took: {0} minutes'.format((time.time() - start_time)/60))
         return step
 
@@ -233,23 +233,96 @@ class ConvNet(object):
         try:
             while True:
                 accuracy_batch, summaries = sess.run([self.accuracy, self.summary_op])
-                writer.add_summary(summaries, global_step=step)
+                if self.num_workers>1:
+                    writer.add_summary(summaries, global_step=step)
                 total_correct_preds += accuracy_batch
                 num_batches+=1
         except tf.errors.OutOfRangeError:
             pass
-        print('Test Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches))
-        utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        'Test Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches),
-                    self.log_file)
-        print('Took: {0} seconds'.format(time.time() - start_time))
+        if epoch=="spark":
+            print('Total accuracy: {} '.format(total_correct_preds / num_batches))
+            utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            'Total accuracy {} '.format(total_correct_preds / num_batches),
+                            self.log_file)
+        else:
+            print('Test Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches))
+            utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            'Test Accuracy at epoch {0}: {1} '.format(epoch, total_correct_preds / num_batches),
+                        self.log_file)
+            print('Took: {0} seconds'.format(time.time() - start_time))
 
-    def train(self, n_epochs):
+    def train(self, n_epochs, steps_limit=500):
         '''
         The train function alternates between training one epoch and evaluating
         '''
-        writer = tf.summary.FileWriter(self.graph_path, tf.get_default_graph())
+        if self.num_workers==0:
+            writer = tf.summary.FileWriter(self.graph_path, tf.get_default_graph())
 
+            with tf.Session() as sess:
+                print('Running session')
+                sess.run(tf.global_variables_initializer())
+                print('Variables initialized')
+                saver = tf.train.Saver()
+                ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path + "/checkpoint"))
+                if ckpt and ckpt.model_checkpoint_path:
+                    saver.restore(sess, ckpt.model_checkpoint_path)
+                    print("Checkpoint has been restored")
+                step = self.gstep.eval()
+
+                for epoch in range(n_epochs):
+                    print('start training')
+                   # self.visualize_filters(sess)
+                    #exit()
+                    step = self.train_one_epoch(sess, saver, self.train_init, writer, epoch, step)
+                    self.eval_once(sess, self.test_init, writer, epoch, step)
+
+                    #sess.run(tf.summary.image('filter', conv2))
+            writer.close()
+        # In case of distributed data:
+        elif self.num_workers>1:
+            writer = tf.summary.FileWriter(self.graph_path, tf.get_default_graph())
+            saver = tf.train.Saver()
+            summary_op = tf.summary.merge_all()
+            init_op = tf.global_variables_initializer()
+            with tf.train.MonitoredTrainingSession(master=self.server.target,
+                                                   is_chief=(self.task_index == 0),
+                                                   scaffold=tf.train.Scaffold(init_op=init_op,
+                                                                              summary_op=summary_op,
+                                                                              saver=saver),
+                                                   checkpoint_dir=self.checkpoint_path,
+                                                   hooks=[tf.train.StopAtStepHook(last_step=steps_limit)]) as sess:
+                #sess.run(tf.initializers.local_variables())
+#                sess.run(tf.global_variables_initializer())
+                worker_step=1
+                epoch=1
+                steps_at_each_epoch = int(self.max_worker_step/n_epochs)
+                while not sess.should_stop():
+                    if (worker_step%steps_at_each_epoch==0) and self.task_index==0:
+                        self.eval_once(sess, self.test_init, writer, int(epoch), 0)
+                        epoch+=1
+
+                    if worker_step<self.max_worker_step+1:
+
+                        sess.run(self.train_init)
+                        _, l, step, accuracy = sess.run([self.opt, self.loss, self.gstep, self.accuracy])
+
+                        utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                        'Loss at step {0}: {1}. Training accuracy is {2}. Worker {3}. Task {4}'.format(step, l,
+                                                                    accuracy, self.worker, self.task_index),
+                                        self.log_file)
+
+                        worker_step+=1
+                    else:
+                        sess.run(self.train_init)
+                    # for epoch in range(n_epochs):
+                    #     print('start training')
+                    #     # self.visualize_filters(sess)
+                    #     # exit()
+                    #     step = self.train_one_epoch(sess, saver, self.train_init, writer, epoch, step)
+                    #    self.eval_once(sess, self.test_init, writer, epoch, step)
+
+    def eval_accuracy_spark(self):
+        writer = tf.summary.FileWriter(self.graph_path, tf.get_default_graph())
         with tf.Session() as sess:
             print('Running session')
             sess.run(tf.global_variables_initializer())
@@ -259,21 +332,18 @@ class ConvNet(object):
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
                 print("Checkpoint has been restored")
+                utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                'Checkpoint has been restored',
+                                self.log_file)
             step = self.gstep.eval()
+            self.eval_once(sess, self.test_init, writer, "spark", step)
 
-            for epoch in range(n_epochs):
-                print('start training')
-               # self.visualize_filters(sess)
-                #exit()
-                step = self.train_one_epoch(sess, saver, self.train_init, writer, epoch, step)
-                self.eval_once(sess, self.test_init, writer, epoch, step)
-
-                #sess.run(tf.summary.image('filter', conv2))
-        writer.close()
 
 
 class CatDogConvNet(ConvNet):
-    def __init__(self, checkpoint_path, graph_path, dataset_size=2500, batch_size=128, log_file='log.txt'):
+    def __init__(self, checkpoint_path, graph_path, dataset_size=2500, batch_size=128, log_file='log.txt',
+                 num_workers=0, task_index=0,
+                 ctx=None, server=None, worker=None, max_worker_step=None):
         #super(ConvNet, self).__init__(checkpoint_path, graph_path)
         ConvNet.__init__(self, checkpoint_path, graph_path)
         self.training_folder = "../data_catsdogs/train"
@@ -286,6 +356,15 @@ class CatDogConvNet(ConvNet):
 
         self.log_file = log_file
 
+        self.task_index=task_index
+        self.num_workers=num_workers
+        self.server=server
+        self.worker=worker
+        self.max_worker_step=max_worker_step
+
+        self.ctx=ctx
+
+
     def set_dataset_size(self, size):
         self.dataset_size = size
 
@@ -294,7 +373,7 @@ class CatDogConvNet(ConvNet):
             # path, train_size, test_size, batch_size, desired_shape=300
             train_data, test_data = get_tensor(self.training_folder, int(self.dataset_size*(1-self.test_percent)),
                                                int(self.dataset_size*self.test_percent), self.batch_size,
-                                               desired_shape=self.desired_shape)
+                                               desired_shape=self.desired_shape, num_workers=self.num_workers, task_index=self.task_index)
 
             iterator = tf.data.Iterator.from_structure(train_data.output_types,
                                                        train_data.output_shapes)
