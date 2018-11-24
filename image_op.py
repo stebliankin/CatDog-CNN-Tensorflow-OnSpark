@@ -35,6 +35,7 @@ import os
 import cv2
 from random import shuffle
 from PIL import Image
+import random
 
 def read_image(path, files, desired_a):
     # Cat vs. Dog dataset https://www.kaggle.com/c/dogs-vs-cats
@@ -55,6 +56,10 @@ def read_image(path, files, desired_a):
             else:
                 lbl = [0, 1]
             # Read image in greyscale:
+            original_pix = cv2.imread(os.path.join(path, img_name))
+            # original_pix = Image.fromarray(original_pix)
+            # original_pix.show()
+
             img_pix = cv2.imread(os.path.join(path, img_name), cv2.IMREAD_GRAYSCALE)
             old_size = img_pix.shape[:2]  # old size in (height, width) format
             ratio = float(desired_a) / float(max(old_size))
@@ -69,9 +74,9 @@ def read_image(path, files, desired_a):
             new_im = cv2.copyMakeBorder(img_pix, top, bottom, left, right, cv2.BORDER_CONSTANT,
                                         value=[0])
             new_im = cv2.resize(new_im, (desired_a, desired_a))
-            # img = Image.fromarray(new_im)
-            # img.show()
-            # exit()
+            img = Image.fromarray(new_im)
+        #    img.show()
+         #   exit()
             # Append resized image and label to the list
             pixels.append(new_im)
             labels.append(lbl)
@@ -79,16 +84,22 @@ def read_image(path, files, desired_a):
           #  pass
     return np.array(pixels), np.array(labels)
 
-def get_tensor(path, train_size, test_size, batch_size, desired_shape=300):
+def get_tensor(path, train_size, test_size, batch_size, desired_shape=300, num_workers=0, task_index=None):
     # get data tensor form cat/dog dataset
     # 0 - dog; 1 - cat
     # resize all images to square 300x300 with zero padding to save original ratio
     files = os.listdir(path)
-    shuffle(files)
-    train_files = files[0:train_size]
-    test_size = files[train_size:train_size+test_size]
+    random.Random(4).shuffle(files)
+    test_files = files[train_size:train_size + test_size]
+    if num_workers==0:
+        train_files = files[0:train_size]
+        random.shuffle(train_files)
+    else:
+        train_size=int(train_size/num_workers)
+        train_files=files[task_index*train_size:(task_index+1)*train_size]
+
     pixels_train, labels_train = read_image(path, train_files, desired_shape)
-    pixels_test, labels_test = read_image(path, test_size, desired_shape)
+    pixels_test, labels_test = read_image(path, test_files, desired_shape)
     train_data = tf.data.Dataset.from_tensor_slices((pixels_train, labels_train))
     test_data = tf.data.Dataset.from_tensor_slices((pixels_test, labels_test))
     train_data = train_data.batch(batch_size)
