@@ -46,8 +46,10 @@ def main_fun(args, ctx):
     n_epoch=int(args.n_epoch)
     dataset_size=int(args.dataset_size)
     batch_size=int(args.batch_size)
-
-    max_worker_step=dataset_size*n_epoch*(1 - 0.3)/(num_executors*batch_size)
+    # with fixed imbalance (if data size is small)
+  #  max_worker_step=dataset_size*n_epoch*(1 - 0.3)/(num_executors*batch_size)
+    # without fixed imbalance. If data size is large imbalance is not sufficient.
+    max_worker_step = dataset_size * n_epoch * (1 - 0.3) / ( batch_size)
 
 
     if job_name == "ps":
