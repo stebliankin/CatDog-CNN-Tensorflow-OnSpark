@@ -7,9 +7,7 @@ import sys
 import argparse
 
 
-sys.path.append("..")
 
-import conv_net
 
 def main_fun(args, ctx):
     # argv - parameters from sys.argv
@@ -17,10 +15,12 @@ def main_fun(args, ctx):
 
     main_path = args.main_path
 
-    sys.path.append(main_path+"CatDog-CNN-Tensorflow-OnSpark/")
+    sys.path.append(main_path+"/CatDog-CNN-Tensorflow-OnSpark/")
 
     import tensorflow as tf
     import tensorflowonspark
+
+
     import conv_net
     import utils
     import datetime
@@ -118,6 +118,10 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", help="batch size to use", type=int)
 
     args=parser.parse_args()
+
+    sys.path.append(args.main_path+"/CatDog-CNN-Tensorflow-OnSpark")
+
+    import conv_net
 
     sc = SparkContext(conf=SparkConf().setAppName("catdog_spark"))
     num_executors = int(args.num_executors)+1
