@@ -7,9 +7,7 @@ import sys
 import argparse
 
 
-sys.path.append("..")
 
-import conv_net
 
 def main_fun(args, ctx):
     # argv - parameters from sys.argv
@@ -17,10 +15,12 @@ def main_fun(args, ctx):
 
     main_path = args.main_path
 
-    sys.path.append(main_path+"CatDog-CNN-Tensorflow-OnSpark/")
+    sys.path.append(main_path+"/CatDog-CNN-Tensorflow-OnSpark/")
 
     import tensorflow as tf
     import tensorflowonspark
+
+
     import conv_net
     import utils
     import datetime
@@ -46,8 +46,10 @@ def main_fun(args, ctx):
     n_epoch=int(args.n_epoch)
     dataset_size=int(args.dataset_size)
     batch_size=int(args.batch_size)
-
-    max_worker_step=dataset_size*n_epoch*(1 - 0.3)/(num_executors*batch_size)
+    # with fixed imbalance (if data size is small)
+  #  max_worker_step=dataset_size*n_epoch*(1 - 0.3)/(num_executors*batch_size)
+    # without fixed imbalance. If data size is large imbalance is not sufficient.
+    max_worker_step = dataset_size * n_epoch * (1 - 0.3) / ( batch_size)
 
 
     if job_name == "ps":
@@ -116,6 +118,10 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", help="batch size to use", type=int)
 
     args=parser.parse_args()
+
+    sys.path.append(args.main_path+"/CatDog-CNN-Tensorflow-OnSpark")
+
+    import conv_net
 
     sc = SparkContext(conf=SparkConf().setAppName("catdog_spark"))
     num_executors = int(args.num_executors)+1

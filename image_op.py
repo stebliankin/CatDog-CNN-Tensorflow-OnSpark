@@ -89,7 +89,7 @@ def get_tensor(path, train_size, test_size, batch_size, desired_shape=300, num_w
     # 0 - dog; 1 - cat
     # resize all images to square 300x300 with zero padding to save original ratio
     files = os.listdir(path)
-    random.Random(4).shuffle(files)
+    random.Random(task_index).shuffle(files)
     test_files = files[train_size:train_size + test_size]
     if num_workers==0:
         train_files = files[0:train_size]
