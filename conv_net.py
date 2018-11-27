@@ -61,86 +61,87 @@ class ConvNet(object):
         self.iter = iterator.make_initializer(tensor)
 
     def inference(self):
-        if not self.encoder:
+        with tf.name_scope("layers"):
+            if not self.encoder:
 
-            self.conv1 = tf.layers.conv2d(inputs=self.img,
-                                     filters=32,
+                self.conv1 = tf.layers.conv2d(inputs=self.img,
+                                         filters=32,
+                                         kernel_size=[5, 5],
+                                         padding='SAME',
+                                         activation=tf.nn.relu,
+                                         name='conv1')
+            else:
+                self.autoencoder()
+                self.conv1 = tf.layers.conv2d(inputs=self.last_encoder,
+                                         filters=32,
+                                         kernel_size=[5, 5],
+                                         padding='SAME',
+                                         activation=tf.nn.relu,
+                                         name='conv1')
+
+            self.pool1 = tf.layers.max_pooling2d(inputs=self.conv1,
+                                            pool_size=[2, 2],
+                                            strides=2,
+                                            name='pool1')
+
+            self.conv2 = tf.layers.conv2d(inputs=self.pool1,
+                                     filters=64,
                                      kernel_size=[5, 5],
                                      padding='SAME',
                                      activation=tf.nn.relu,
-                                     name='conv1')
-        else:
-            self.autoencoder()
-            self.conv1 = tf.layers.conv2d(inputs=self.last_encoder,
-                                     filters=32,
-                                     kernel_size=[5, 5],
-                                     padding='SAME',
-                                     activation=tf.nn.relu,
-                                     name='conv1')
+                                     name='conv2')
 
-        pool1 = tf.layers.max_pooling2d(inputs=self.conv1,
-                                        pool_size=[2, 2],
-                                        strides=2,
-                                        name='pool1')
+            self.pool2 = tf.layers.max_pooling2d(inputs=self.conv2,
+                                            pool_size=[2, 2],
+                                            strides=2,
+                                            name='pool2')
 
-        self.conv2 = tf.layers.conv2d(inputs=pool1,
-                                 filters=64,
-                                 kernel_size=[5, 5],
-                                 padding='SAME',
-                                 activation=tf.nn.relu,
-                                 name='conv2')
+            self.conv3 = tf.layers.conv2d(inputs=self.pool2,
+                                          filters=128,
+                                          kernel_size=[6, 6],
+                                          padding='SAME',
+                                          activation=tf.nn.relu,
+                                          name='conv3')
 
-        pool2 = tf.layers.max_pooling2d(inputs=self.conv2,
-                                        pool_size=[2, 2],
-                                        strides=2,
-                                        name='pool2')
+            self.pool3 = tf.layers.max_pooling2d(inputs=self.conv3,
+                                            pool_size=[2, 2],
+                                            strides=2,
+                                            name='pool3')
 
-        self.conv3 = tf.layers.conv2d(inputs=pool2,
-                                      filters=128,
-                                      kernel_size=[6, 6],
-                                      padding='SAME',
-                                      activation=tf.nn.relu,
-                                      name='conv3')
+            self.conv4 = tf.layers.conv2d(inputs=self.pool3,
+                                          filters=64,
+                                          kernel_size=[5, 5],
+                                          padding='SAME',
+                                          activation=tf.nn.relu,
+                                          name='conv4')
 
-        pool3 = tf.layers.max_pooling2d(inputs=self.conv3,
-                                        pool_size=[2, 2],
-                                        strides=2,
-                                        name='pool3')
+            self.pool4 = tf.layers.max_pooling2d(inputs=self.conv4,
+                                            pool_size=[2, 2],
+                                            strides=2,
+                                            name='pool4')
 
-        self.conv4 = tf.layers.conv2d(inputs=pool3,
-                                      filters=64,
-                                      kernel_size=[5, 5],
-                                      padding='SAME',
-                                      activation=tf.nn.relu,
-                                      name='conv4')
+            self.conv5 = tf.layers.conv2d(inputs=self.pool4,
+                                          filters=32,
+                                          kernel_size=[5, 5],
+                                          padding='SAME',
+                                          activation=tf.nn.relu,
+                                          name='conv5')
 
-        pool4 = tf.layers.max_pooling2d(inputs=self.conv4,
-                                        pool_size=[2, 2],
-                                        strides=2,
-                                        name='pool4')
+            # pool5 = tf.layers.max_pooling2d(inputs=self.conv5,
+            #                                 pool_size=[2, 2],
+            #                                 strides=1,
+            #                                 name='pool5')
 
-        self.conv5 = tf.layers.conv2d(inputs=pool4,
-                                      filters=32,
-                                      kernel_size=[5, 5],
-                                      padding='SAME',
-                                      activation=tf.nn.relu,
-                                      name='conv5')
+            feature_dim = self.conv5.shape[1] * self.conv5.shape[2] * self.conv5.shape[3]
 
-        # pool5 = tf.layers.max_pooling2d(inputs=self.conv5,
-        #                                 pool_size=[2, 2],
-        #                                 strides=1,
-        #                                 name='pool5')
+            self.conv5 = tf.reshape(self.conv5, [-1, feature_dim])
+            self.fc = tf.layers.dense(self.conv5, 512, activation=tf.nn.relu, name='fc') # fully connected layer
+            self.dropout = tf.layers.dropout(self.fc,
+                                        self.keep_prob,
+                                        training=self.training, # Perform dropout only on training mode
+                                        name='dropout')  # regularization term
 
-        feature_dim = self.conv5.shape[1] * self.conv5.shape[2] * self.conv5.shape[3]
-
-        self.conv5 = tf.reshape(self.conv5, [-1, feature_dim])
-        fc = tf.layers.dense(self.conv5, 512, activation=tf.nn.relu, name='fc') # fully connected layer
-        dropout = tf.layers.dropout(fc,
-                                    self.keep_prob,
-                                    training=self.training, # Perform dropout only on training mode
-                                    name='dropout')  # regularization term
-
-        self.logits = tf.layers.dense(dropout, self.n_classes, name='logits')
+            self.logits = tf.layers.dense(self.dropout, self.n_classes, name='logits')
 
 
     def autoencoder(self):
@@ -176,7 +177,9 @@ class ConvNet(object):
 
 
     def optimaze_autoencoders(self):
-        self.op_autoencoders = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss_autoencoders, global_step=self.gstep)
+
+        self.op_autoencoders = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss_autoencoders,
+                                                                global_step=self.gstep)
 
     def show_image(self, sess, img1, img2):
         original_image, restored_image = sess.run([img1[0], img2[0]])
@@ -235,6 +238,7 @@ class ConvNet(object):
         '''
         #
         with tf.name_scope('loss'):
+
             entropy = tf.nn.softmax_cross_entropy_with_logits(labels=self.label, logits=self.logits)
             self.loss = tf.reduce_mean(entropy, name='loss')
 
@@ -243,8 +247,20 @@ class ConvNet(object):
         Define training op
         using Adam Gradient Descent to minimize cost
         '''
+        # optimizable_variables = [self.conv1, self.conv2, self.conv3, self.conv4, self.conv5,
+        #                           self.pool1, self.pool2, self.pool3, self.pool4,
+        #                           self.fc, self.dropout, self.logits]
+        filter_vars=["conv1","conv2","conv3","conv4","conv5",
+                     "pool1", "pool2","pool3","pool4", "pool5",
+                     "fc", "logits", "dropout","loss"]
+        train_vars=[]
+        for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+            for filter_var in filter_vars:
+                if filter_var in var.name:
+                    train_vars.append(var)
         self.opt = tf.train.AdamOptimizer(self.lr).minimize(self.loss,
-                                                            global_step=self.gstep)
+                                                            global_step=self.gstep,
+                                                            var_list=train_vars)
 
     def summary(self):
         '''
