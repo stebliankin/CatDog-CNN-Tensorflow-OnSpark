@@ -37,7 +37,7 @@ from random import shuffle
 from PIL import Image
 import random
 
-def read_image(path, files, desired_a):
+def read_image(path, files, desired_a, n_channels=1):
     # Cat vs. Dog dataset https://www.kaggle.com/c/dogs-vs-cats
     # fesired_a - desired length of a side of square
     pixels = []
@@ -59,8 +59,10 @@ def read_image(path, files, desired_a):
             original_pix = cv2.imread(os.path.join(path, img_name))
             # original_pix = Image.fromarray(original_pix)
             # original_pix.show()
-
-            img_pix = cv2.imread(os.path.join(path, img_name), cv2.IMREAD_GRAYSCALE)
+            if n_channels==1:
+                img_pix = cv2.imread(os.path.join(path, img_name), cv2.IMREAD_GRAYSCALE)
+            else:
+                img_pix = cv2.imread(os.path.join(path, img_name))
             old_size = img_pix.shape[:2]  # old size in (height, width) format
             ratio = float(desired_a) / float(max(old_size))
             # Make height or width equal to desired_a
@@ -84,12 +86,12 @@ def read_image(path, files, desired_a):
           #  pass
     return np.array(pixels), np.array(labels)
 
-def get_tensor(path, train_size, test_size, batch_size, desired_shape=300, num_workers=0, task_index=None):
+def get_tensor(path, train_size, test_size, batch_size, desired_shape=300, num_workers=0, task_index=None, n_channels=1):
     # get data tensor form cat/dog dataset
     # 0 - dog; 1 - cat
     # resize all images to square 300x300 with zero padding to save original ratio
     files = os.listdir(path)
-    random.Random(task_index).shuffle(files)
+    shuffle(files)
     test_files = files[train_size:train_size + test_size]
     if num_workers==0:
         train_files = files[0:train_size]
@@ -98,8 +100,8 @@ def get_tensor(path, train_size, test_size, batch_size, desired_shape=300, num_w
         train_size=int(train_size/num_workers)
         train_files=files[task_index*train_size:(task_index+1)*train_size]
 
-    pixels_train, labels_train = read_image(path, train_files, desired_shape)
-    pixels_test, labels_test = read_image(path, test_files, desired_shape)
+    pixels_train, labels_train = read_image(path, train_files, desired_shape, n_channels)
+    pixels_test, labels_test = read_image(path, test_files, desired_shape, n_channels)
     train_data = tf.data.Dataset.from_tensor_slices((pixels_train, labels_train))
     test_data = tf.data.Dataset.from_tensor_slices((pixels_test, labels_test))
     train_data = train_data.batch(batch_size)
