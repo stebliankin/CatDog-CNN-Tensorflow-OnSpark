@@ -28,7 +28,7 @@ import tensorflow.contrib.layers as lays
 
 
 class ConvNet(object):
-    def __init__(self, checkpoint_path, graph_path, batch_size=100):
+    def __init__(self, checkpoint_path, graph_path, batch_size=100, encoder=False):
 
 #        self.desired_shape = 100
 #        self.dataset_size = 15000
@@ -45,6 +45,7 @@ class ConvNet(object):
 
         self.num_workers=0
         self.ctx=None
+        self.encoder=encoder
 
     def set_batch_size(self, batch_size):
         self.batch_size = batch_size
@@ -60,12 +61,22 @@ class ConvNet(object):
         self.iter = iterator.make_initializer(tensor)
 
     def inference(self):
-        self.conv1 = tf.layers.conv2d(inputs=self.img,
-                                 filters=32,
-                                 kernel_size=[5, 5],
-                                 padding='SAME',
-                                 activation=tf.nn.relu,
-                                 name='conv1')
+        if not self.encoder:
+
+            self.conv1 = tf.layers.conv2d(inputs=self.img,
+                                     filters=32,
+                                     kernel_size=[5, 5],
+                                     padding='SAME',
+                                     activation=tf.nn.relu,
+                                     name='conv1')
+        else:
+            self.autoencoder()
+            self.conv1 = tf.layers.conv2d(inputs=self.last_encoder,
+                                     filters=32,
+                                     kernel_size=[5, 5],
+                                     padding='SAME',
+                                     activation=tf.nn.relu,
+                                     name='conv1')
 
         pool1 = tf.layers.max_pooling2d(inputs=self.conv1,
                                         pool_size=[2, 2],
@@ -115,15 +126,15 @@ class ConvNet(object):
                                       activation=tf.nn.relu,
                                       name='conv5')
 
-        pool5 = tf.layers.max_pooling2d(inputs=self.conv5,
-                                        pool_size=[2, 2],
-                                        strides=2,
-                                        name='pool5')
+        # pool5 = tf.layers.max_pooling2d(inputs=self.conv5,
+        #                                 pool_size=[2, 2],
+        #                                 strides=1,
+        #                                 name='pool5')
 
-        feature_dim = pool5.shape[1] * pool5.shape[2] * pool5.shape[3]
+        feature_dim = self.conv5.shape[1] * self.conv5.shape[2] * self.conv5.shape[3]
 
-        pool5 = tf.reshape(pool5, [-1, feature_dim])
-        fc = tf.layers.dense(pool5, 512, activation=tf.nn.relu, name='fc') # fully connected layer
+        self.conv5 = tf.reshape(self.conv5, [-1, feature_dim])
+        fc = tf.layers.dense(self.conv5, 512, activation=tf.nn.relu, name='fc') # fully connected layer
         dropout = tf.layers.dropout(fc,
                                     self.keep_prob,
                                     training=self.training, # Perform dropout only on training mode
@@ -134,41 +145,46 @@ class ConvNet(object):
 
     def autoencoder(self):
         # encoder
-        # 256 x 256 x 1   ->  128 x 128 x 32
-        # 128 x 128 x 32  ->  64 x 64 x 16
-        # 64 x 64 x 16    ->  32 x 32 x 8
-        net = lays.conv2d(self.img, 32, [5, 5], stride=2, padding='SAME')
-        net = lays.conv2d(net, 16, [5, 5], stride=2, padding='SAME')
-        net = lays.conv2d(net, 8, [5, 5], stride=2, padding='SAME')
+        # 256 x 256 x 1   ->  128 x 128 x 64
+        # 128 x 128 x 64  ->  64 x 64 x 32
+        # 64 x 64 x 32    ->  16 x 16 x 32
+        net = lays.conv2d(self.img, 128, [5, 5], stride=2, padding='SAME')
+        net = lays.conv2d(net, 64, [5, 5], stride=2, padding='SAME')
+        self.last_encoder = lays.conv2d(net, 32, [5, 5], stride=4, padding='SAME')
         # decoder
         # 2 x 2 x 8    ->  8 x 8 x 16
         # 8 x 8 x 16   ->  16 x 16 x 32
         # 16 x 16 x 32  ->  32 x 32 x 1
-        net = lays.conv2d_transpose(net, 16, [5, 5], stride=2, padding='SAME')
-        net = lays.conv2d_transpose(net, 32, [5, 5], stride=2, padding='SAME')
-        net = lays.conv2d_transpose(net, 1, [5, 5], stride=2, padding='SAME', activation_fn=tf.nn.tanh)
+        net = lays.conv2d_transpose(self.last_encoder, 64, [5, 5], stride=4, padding='SAME')
+        net = lays.conv2d_transpose(net, 128, [5, 5], stride=2, padding='SAME')
+        net = lays.conv2d_transpose(net, 1, [5, 5], stride=2, padding='SAME', activation_fn=tf.nn.relu)
         return net
 
-    def encoder(self):
-        # encoder
-        # 32 x 32 x 1   ->  16 x 16 x 32
-        # 16 x 16 x 32  ->  8 x 8 x 16
-        # 8 x 8 x 16    ->  2 x 2 x 8
-        net = lays.conv2d(self.img, 32, [5, 5], stride=2, padding='SAME')
-        net = lays.conv2d(net, 16, [5, 5], stride=2, padding='SAME')
-        net = lays.conv2d(net, 8, [5, 5], stride=4, padding='SAME')
-        return net
+    # def encoder(self):
+    #     # encoder
+    #     # 32 x 32 x 1   ->  16 x 16 x 32
+    #     # 16 x 16 x 32  ->  8 x 8 x 16
+    #     # 8 x 8 x 16    ->  2 x 2 x 8
+    #     net1 = lays.conv2d(self.img, 32, [5, 5], stride=2, padding='SAME')
+    #     net2 = lays.conv2d(net1, 16, [5, 5], stride=2, padding='SAME')
+    #     net3 = lays.conv2d(net2, 8, [5, 5], stride=4, padding='SAME')
+    #     return net3
 
     def autoencoders_loss(self):
         self.ae_outputs = self.autoencoder()  # create the Autoencoder network
         self.loss_autoencoders = tf.reduce_mean(tf.square(self.ae_outputs - self.img))  # claculate the mean square error loss
-    def optimaze_autoencoders(self):
-        self.op_autoencoders = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss_autoencoders)
 
-    def show_image(self, sess, img):
-        original_image = sess.run(img[0])
+
+    def optimaze_autoencoders(self):
+        self.op_autoencoders = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss_autoencoders, global_step=self.gstep)
+
+    def show_image(self, sess, img1, img2):
+        original_image, restored_image = sess.run([img1[0], img2[0]])
         original_image = np.reshape(original_image, (self.desired_shape, self.desired_shape))
+        restored_image = np.reshape(restored_image, (self.desired_shape, self.desired_shape))
         Image.fromarray(original_image).show()
+        Image.fromarray(restored_image).show()
+
 
     def train_autoencoder(self, epoch):
         with tf.Session() as sess:
@@ -186,10 +202,13 @@ class ConvNet(object):
             for e in range(1, epoch):
                 print("Running epoch {}".format(e))
                 sess.run(self.train_init)
-               # self.show_image(sess, self.img)
+                # self.show_image(sess, self.img,  self.ae_outputs)
+                # exit()
                 self.training=True
+
                 try:
-                   while True:
+
+                    while True:
                        _, l = sess.run([self.op_autoencoders, self.loss_autoencoders])
                        print("Loss at step {}: {}".format(step, l))
                        utils.write_log(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -197,10 +216,12 @@ class ConvNet(object):
                                        self.log_file)
                        step+=1
                 except tf.errors.OutOfRangeError:
+                    print("Saving checkpoint")
+                    if not os.path.exists(self.checkpoint_path):
+                        os.makedirs(self.checkpoint_path)
+                    saver.save(sess, self.checkpoint_path + "/autoencoders/checkpoint", step)
                     pass
-                if not os.path.exists(self.checkpoint_path):
-                    os.makedirs(self.checkpoint_path)
-                saver.save(sess, self.checkpoint_path + "/autoencoders/checkpoint", step)
+
 
 
 
@@ -259,12 +280,10 @@ class ConvNet(object):
         self.optimize()
         self.eval()
         self.summary()
-
-    def build_autoencoders(self):
-        self.get_data()
         self.autoencoder()
         self.autoencoders_loss()
         self.optimaze_autoencoders()
+
 
     def visualize_filters(self, sess):
         filters = sess.run(self.conv1)
@@ -361,6 +380,11 @@ class ConvNet(object):
                 if ckpt and ckpt.model_checkpoint_path:
                     saver.restore(sess, ckpt.model_checkpoint_path)
                     print("Checkpoint has been restored")
+                else:
+                    ckpt = tf.train.get_checkpoint_state(os.path.dirname(self.checkpoint_path+"/autoencoders/chekpoint"))
+                    if ckpt and ckpt.model_checkpoint_path:
+                        saver.restore(sess, ckpt.model_checkpoint_path)
+                        print("Checkpoint from autoencoders restored")
                 step = self.gstep.eval()
 
                 for epoch in range(n_epochs):
@@ -437,9 +461,9 @@ class ConvNet(object):
 class CatDogConvNet(ConvNet):
     def __init__(self, checkpoint_path, graph_path, dataset_size=2500, batch_size=128, log_file='log.txt',
                  num_workers=0, task_index=0, n_channels=1,
-                 ctx=None, server=None, worker=None, max_worker_step=None):
+                 ctx=None, server=None, worker=None, max_worker_step=None, encoder=False):
         #super(ConvNet, self).__init__(checkpoint_path, graph_path)
-        ConvNet.__init__(self, checkpoint_path, graph_path, batch_size)
+        ConvNet.__init__(self, checkpoint_path, graph_path, batch_size, encoder)
         self.training_folder = "../data_catsdogs/train"
         self.desired_shape = 100
         self.dataset_size = dataset_size
