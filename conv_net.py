@@ -337,7 +337,7 @@ class ConvNet(object):
                 #time.sleep(10)
         except tf.errors.OutOfRangeError:
             pass
-        if self.num_workers>0:
+        if self.num_workers==0:
             if not os.path.exists(self.checkpoint_path):
                 os.makedirs(self.checkpoint_path)
             saver.save(sess, self.checkpoint_path + "/checkpoint", step)
