@@ -103,3 +103,36 @@
 2018-11-27 16:40 Test Accuracy at epoch 13: 0.5 
 2018-11-27 16:40 Test Accuracy at epoch 14: 0.5 
 2018-11-27 16:40 End run_catdog_conv.py trainig of 15 Epoch                 Running time is 0.17074276606241862 min.
+2018-11-27 17:34 Starting run_catdog_conv.py
+2018-11-27 17:34 Dataset size: 8; Batch size 2
+2018-11-27 17:42 Starting run_catdog_conv.py
+2018-11-27 17:42 Dataset size: 8; Batch size 2
+2018-11-27 17:43 Starting run_catdog_conv.py
+2018-11-27 17:43 Dataset size: 8; Batch size 2
+2018-11-27 17:44 Starting run_catdog_conv.py
+2018-11-27 17:44 Dataset size: 8; Batch size 2
+2018-11-27 17:45 Starting run_catdog_conv.py
+2018-11-27 17:45 Dataset size: 8; Batch size 2
+2018-11-27 17:46 Starting run_catdog_conv.py
+2018-11-27 17:46 Dataset size: 8; Batch size 2
+2018-11-27 18:01 Starting run_catdog_conv.py
+2018-11-27 18:01 Dataset size: 8; Batch size 2
+2018-11-27 18:27 Starting run_catdog_conv.py
+2018-11-27 18:27 Dataset size: 8; Batch size 2
+2018-11-27 18:27 Test Accuracy at epoch 0: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 1: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 2: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 3: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 4: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 5: 1.0 
+2018-11-27 18:27 Test Accuracy at epoch 6: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 7: 0.5 
+2018-11-27 18:27 Loss at step 79: 0.4804176688194275. Training accuracy is 0.0
+2018-11-27 18:27 Test Accuracy at epoch 8: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 9: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 10: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 11: 1.0 
+2018-11-27 18:27 Test Accuracy at epoch 12: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 13: 0.5 
+2018-11-27 18:27 Test Accuracy at epoch 14: 0.5 
+2018-11-27 18:27 End run_catdog_conv.py trainig of 15 Epoch                 Running time is 0.08378631671269735 min.

@@ -401,7 +401,7 @@ class ConvNet(object):
                     if ckpt and ckpt.model_checkpoint_path:
                         saver.restore(sess, ckpt.model_checkpoint_path)
                         print("Checkpoint from autoencoders restored")
-                step = self.gstep.eval()
+                step = 0
 
                 for epoch in range(n_epochs):
                     print('start training')
