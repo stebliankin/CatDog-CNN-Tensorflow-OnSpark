@@ -4,9 +4,6 @@ This script is part of the FIU CAP5768 final project.
 Objective:
     Convolutional Neural Network to classify cats vs dogs
 
-The structure of the model and part of the code was taken from
-the open sourced Stanford course "CS 20: Tensorflow for Deep Learning Research"
-(https://github.com/chiphuyen/stanford-tensorflow-tutorials/blob/master/examples/07_convnet_mnist.py)
 
 """
 import time
@@ -14,7 +11,6 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import numpy as np
 import tensorflow as tf
-import pylab
 import matplotlib.pyplot as plt
 import utils_MNIST
 import time
@@ -311,12 +307,14 @@ class ConvNet(object):
             plt.subplot(n_rows, n_columns, i+1)
             plt.title('Filter'+str(i))
             plt.imshow(filters[0,:,:,i], interpolation='nearest', cmap='gray')
-        pylab.show()
+        plt.show()
 
 
     def train_one_epoch(self, sess, saver, init, writer, epoch, step):
         start_time = time.time()
         sess.run(init)
+        # self.visualize_filters(sess)
+        # exit()
         self.training = True
         total_loss = 0
         n_batches = 0
@@ -337,7 +335,7 @@ class ConvNet(object):
                 #time.sleep(10)
         except tf.errors.OutOfRangeError:
             pass
-        if self.num_workers>0:
+        if self.num_workers==0:
             if not os.path.exists(self.checkpoint_path):
                 os.makedirs(self.checkpoint_path)
             saver.save(sess, self.checkpoint_path + "/checkpoint", step)
@@ -401,7 +399,7 @@ class ConvNet(object):
                     if ckpt and ckpt.model_checkpoint_path:
                         saver.restore(sess, ckpt.model_checkpoint_path)
                         print("Checkpoint from autoencoders restored")
-                step = self.gstep.eval()
+                step = 0
 
                 for epoch in range(n_epochs):
                     print('start training')

@@ -8,9 +8,9 @@ utils.safe_mkdir("../checkpoints")
 
 graph_path = "../graphs/cat_dog"
 log_file = "local_run_log.txt"
-dataset_size = 8
-batch_size = 2
-n_epoch=15
+dataset_size = 25000
+batch_size = 100
+n_epoch=10
 
 start = time.time()
 print('start program')
